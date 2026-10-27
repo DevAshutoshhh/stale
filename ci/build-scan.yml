@@ -1,0 +1,80 @@
+# Package + Secure, shared by the MR and main lanes (SRS §15.3).
+include:
+  - template: Jobs/SAST.gitlab-ci.yml
+  - template: Jobs/Secret-Detection.gitlab-ci.yml
+  - template: Jobs/Container-Scanning.gitlab-ci.yml
+
+variables:
+  SAST_EXCLUDED_PATHS: "spec, test, tests, tmp, engine/tests, app/ledger-api/test, node_modules"
+  # Demo-only TLS keys for the partner-sim sidecar are committed on purpose (SRS §13.4,
+  # app/partner-sim/certs/README.md); they protect nothing.
+  SECRET_DETECTION_EXCLUDED_PATHS: "app/partner-sim/certs"
+  CS_IMAGE: $CI_REGISTRY_IMAGE/ledger-api:$CI_COMMIT_SHA
+
+build-candidate:
+  stage: package
+  extends: .kaniko
+  needs: []
+  script:
+    - /kaniko/executor --cleanup --context "$CI_PROJECT_DIR/app/ledger-api"
+        --dockerfile "$CI_PROJECT_DIR/app/ledger-api/Dockerfile"
+        --destination "$CI_REGISTRY_IMAGE/ledger-api:$CI_COMMIT_SHA"
+    - /kaniko/executor --cleanup --context "$CI_PROJECT_DIR/app/partner-sim"
+        --dockerfile "$CI_PROJECT_DIR/app/partner-sim/Dockerfile"
+        --destination "$CI_REGISTRY_IMAGE/partner-sim:$CI_COMMIT_SHA"
+
+# Runs inside the candidate image itself, so the report reflects exactly what would ship (SRS §7.2).
+# Stage `package`: it must follow build-candidate, and `verify` precedes `package` in the stage order.
+inspect-candidate:
+  stage: package
+  image:
+    name: $CI_REGISTRY_IMAGE/ledger-api:$CI_COMMIT_SHA
+    entrypoint: [""]
+  needs: [build-candidate]
+  script:
+    - cd /app && node --require ./src/trust-policy.cjs src/runtime-report.cjs > /tmp/candidate-runtime.json
+    - cp /tmp/candidate-runtime.json "$CI_PROJECT_DIR/candidate-runtime.json"
+    - node -e 'const r=require("/tmp/candidate-runtime.json"); console.log(r.node_version, JSON.stringify(r.trust_policy), r.effective_ca_count, "CAs")'
+  artifacts:
+    paths: [candidate-runtime.json]
+
+# GitLab security templates, re-staged to `secure`; reports also kept as plain artifacts for security-gate.
+sast:
+  stage: secure
+semgrep-sast:
+  stage: secure
+  needs: []
+  rules:
+    - when: on_success
+  artifacts:
+    paths: [gl-sast-report.json]
+    reports:
+      sast: gl-sast-report.json
+secret_detection:
+  stage: secure
+  needs: []
+  rules:
+    - when: on_success
+  artifacts:
+    paths: [gl-secret-detection-report.json]
+    reports:
+      secret_detection: gl-secret-detection-report.json
+container_scanning:
+  stage: secure
+  needs: [build-candidate]
+  rules:
+    - when: on_success
+  artifacts:
+    paths: [gl-container-scanning-report.json]
+    reports:
+      container_scanning: gl-container-scanning-report.json
+
+security-gate:
+  stage: secure
+  extends: .engine
+  needs:
+    - job: semgrep-sast
+    - job: secret_detection
+    - job: container_scanning
+  script:
+    - stale security-gate gl-sast-report.json gl-secret-detection-report.json gl-container-scanning-report.json

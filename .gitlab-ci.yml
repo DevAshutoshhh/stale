@@ -1,0 +1,50 @@
+# Stale pipeline router (SRS §15.1). One lane per pipeline, chosen from predefined variables only,
+# so include:rules never depends on workflow-level variables.
+#
+# Manual lanes are selected by STALE_PIPELINE (web/API runs, where pipeline variables are allowed) or
+# by the pipeline schedule's description (CI_PIPELINE_SCHEDULE_DESCRIPTION), which works in projects
+# that forbid pipeline variables. Schedules: control-loop (*/15), release, smoke, ci-image (played on demand).
+#
+#   control-loop   collect → check → dispatch → report
+#   mr             merge_request_event: tests, build, scans, reprove, verify-mr
+#   main           push to the default branch: build, scans, plan-release → child (no-op unless remediation)
+#   release        manual release: main lane with the MR-label check skipped
+#   smoke          WIF smoke test (no key file)
+#   ci-image       rebuild the CI image
+workflow:
+  name: "$STALE_PIPELINE_NAME"
+  rules:
+    - if: $CI_PIPELINE_SOURCE =~ /^(web|api|schedule)$/ && ($STALE_PIPELINE == "control-loop" || $CI_PIPELINE_SCHEDULE_DESCRIPTION == "control-loop")
+      variables: { STALE_LANE: control, STALE_PIPELINE_NAME: "control-loop" }
+    - if: $CI_PIPELINE_SOURCE =~ /^(web|api|schedule)$/ && ($STALE_PIPELINE == "release" || $CI_PIPELINE_SCHEDULE_DESCRIPTION == "release")
+      variables: { STALE_LANE: main, STALE_FORCE_RELEASE: "1", STALE_PIPELINE_NAME: "release (manual)" }
+    - if: $CI_PIPELINE_SOURCE =~ /^(web|api|schedule)$/ && ($STALE_PIPELINE == "smoke" || $CI_PIPELINE_SCHEDULE_DESCRIPTION == "smoke")
+      variables: { STALE_LANE: smoke, STALE_PIPELINE_NAME: "wif-smoke" }
+    - if: $CI_PIPELINE_SOURCE =~ /^(web|api|schedule)$/ && ($STALE_PIPELINE == "ci-image" || $CI_PIPELINE_SCHEDULE_DESCRIPTION == "ci-image")
+      variables: { STALE_LANE: ci-image, STALE_PIPELINE_NAME: "ci-image" }
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      variables: { STALE_LANE: mr, STALE_PIPELINE_NAME: "mr !$CI_MERGE_REQUEST_IID: $CI_MERGE_REQUEST_TITLE" }
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      variables: { STALE_LANE: main, STALE_PIPELINE_NAME: "main: $CI_COMMIT_TITLE" }
+    - when: never
+
+stages: [plan, create, verify, package, secure, configure, release, monitor, govern]
+
+include:
+  - local: ci/common.yml
+  - local: ci/control-loop.yml
+    rules:
+      - if: $CI_PIPELINE_SOURCE =~ /^(web|api|schedule)$/ && ($STALE_PIPELINE == "control-loop" || $CI_PIPELINE_SCHEDULE_DESCRIPTION == "control-loop")
+  - local: ci/mr.yml
+    rules:
+      - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  - local: ci/main.yml
+    rules:
+      - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      - if: $CI_PIPELINE_SOURCE =~ /^(web|api|schedule)$/ && ($STALE_PIPELINE == "release" || $CI_PIPELINE_SCHEDULE_DESCRIPTION == "release")
+  - local: ci/smoke.yml
+    rules:
+      - if: $CI_PIPELINE_SOURCE =~ /^(web|api|schedule)$/ && ($STALE_PIPELINE == "smoke" || $CI_PIPELINE_SCHEDULE_DESCRIPTION == "smoke")
+  - local: ci/ci-image.yml
+    rules:
+      - if: $CI_PIPELINE_SOURCE =~ /^(web|api|schedule)$/ && ($STALE_PIPELINE == "ci-image" || $CI_PIPELINE_SCHEDULE_DESCRIPTION == "ci-image")

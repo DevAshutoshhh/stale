@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+# Node
+node_modules/
+# Stale runtime output (CI artifacts, never committed — SRS §6.2)
+.stale/out/
+engine/stale_engine/data/*.bin
+# Secrets / local
+.env
+*.key.local
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# Local operator notes and scripts (not part of the submission)
+.handoff/

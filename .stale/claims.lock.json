@@ -1,0 +1,34 @@
+{
+  "schema": "stale.lock/v2",
+  "claims": {
+    "anchor-trusted": {
+      "fingerprint": "sha256:8596a320913315cf743f5516e41076edcc440818492cff5c81274d5d48a9f9d0",
+      "minted_at": "2026-10-27T03:42:20Z",
+      "pipeline_id": 2992600961,
+      "job_id": 17490623302,
+      "revision": "ledger-api-p2992600961",
+      "commit_sha": "765417a03bcfd8a52966afe20cf253e2ed5b7906",
+      "issue_iid": 15,
+      "mr_iids": [
+        13
+      ]
+    },
+    "migration-safe": {
+      "fingerprint": "sha256:34f4d5508efed394b98a824a4f5f65d2f847e713cc73b176486863ce89a1dd42",
+      "minted_at": "2026-10-27T03:42:20Z",
+      "pipeline_id": 2992600961,
+      "job_id": 17490623302,
+      "revision": "ledger-api-p2992600961",
+      "commit_sha": "765417a03bcfd8a52966afe20cf253e2ed5b7906",
+      "issue_iid": 16,
+      "mr_iids": [
+        14
+      ]
+    }
+  },
+  "sci": {
+    "reproofs_skipped": 0,
+    "runner_seconds_avoided": 0.0,
+    "gco2eq_avoided": 0.0
+  }
+}

@@ -1,0 +1,7 @@
+# Rebuild the CI image (python 3.12 + engine deps, gcloud, k6, cloud-sql-proxy, crane).
+build-ci-image:
+  stage: package
+  extends: .kaniko
+  script:
+    - /kaniko/executor --context "$CI_PROJECT_DIR" --dockerfile "$CI_PROJECT_DIR/ci/images/stale-ci/Dockerfile"
+        --destination "$CI_REGISTRY_IMAGE/stale-ci:latest" --destination "$CI_REGISTRY_IMAGE/stale-ci:$CI_COMMIT_SHORT_SHA"

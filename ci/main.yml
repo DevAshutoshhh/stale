@@ -1,0 +1,40 @@
+# Main lane (SRS §15.3, build-prompt override): build + scan every push, but release ONLY when the
+# merged MR carries `stale-remediation` (or for a manual release). Otherwise the child is a no-op,
+# which keeps Scenario B's migration pending.
+include:
+  - local: ci/build-scan.yml
+
+publish-ar:
+  stage: package
+  extends: [.engine, .gcp_auth]
+  needs: [build-candidate]
+  before_script: []
+  script:
+    - source ci/scripts/gcp-login.sh
+    - crane auth login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD"
+    - gcloud auth print-access-token | crane auth login "${GCP_REGION}-docker.pkg.dev" -u oauth2accesstoken --password-stdin
+    - for img in ledger-api partner-sim; do crane copy "$CI_REGISTRY_IMAGE/$img:$CI_COMMIT_SHA" "$AR_IMAGE_BASE/$img:$CI_COMMIT_SHA"; done
+
+plan-release:
+  stage: release
+  extends: .engine_gcp_sql
+  needs: [inspect-candidate, security-gate, publish-ar]
+  script:
+    - stale collect --target candidate --runtime-file candidate-runtime.json
+    - FORCE=""; if [ "${STALE_FORCE_RELEASE:-}" = "1" ]; then FORCE="--force"; fi
+    - stale plan-release $FORCE --out release-plan.yml --template ci/release.yml
+    - echo "---- release-plan.yml (head)"; head -12 release-plan.yml
+  artifacts:
+    paths: [release-plan.yml, .stale/out/]
+
+release:
+  stage: release
+  needs: [plan-release]
+  # the trigger holds this group until its child pipeline finishes, so two release children never
+  # interleave (resource_group on the child's jobs only serializes job by job)
+  resource_group: release-train
+  trigger:
+    include:
+      - artifact: release-plan.yml
+        job: plan-release
+    strategy: depend

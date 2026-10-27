@@ -1,0 +1,84 @@
+# MR lane (SRS §15.3): tests, build, scans, re-proof, policy check + auto-merge.
+include:
+  - local: ci/build-scan.yml
+
+# Decision jobs never trust the MR's own engine or claims: they load engine/ and .stale/ from the
+# target branch, so an MR cannot weaken the policy that judges it.
+.trusted_policy: &trusted_policy
+  - git fetch -q --depth=1 origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+  - git checkout -q FETCH_HEAD -- engine .stale
+  - pip install -q --no-deps ./engine
+
+validate:
+  stage: plan
+  extends: .engine
+  needs: []
+  script:
+    - stale validate
+
+mark-reproving:
+  stage: create
+  extends: .engine
+  before_script: *trusted_policy
+  needs: []
+  rules:
+    - if: $CI_MERGE_REQUEST_LABELS =~ /(^|,)stale-remediation(,|$)/
+  script:
+    - stale mark-reproving --mr-iid "$CI_MERGE_REQUEST_IID"
+
+engine-tests:
+  stage: verify
+  extends: .engine
+  needs: []
+  services:
+    - name: postgres:18
+      alias: postgres
+  variables:
+    POSTGRES_DB: shadow_test
+    POSTGRES_HOST_AUTH_METHOD: trust
+    STALE_TEST_DATABASE_URL: postgresql://postgres@postgres:5432/shadow_test
+  script:
+    - cd engine && python -m pytest -q -p no:cacheprovider --cov=stale_engine --cov-report=term | tail -30
+
+app-tests:
+  stage: verify
+  image: node:24.22.1-bookworm-slim
+  needs: []
+  script:
+    - cd app/ledger-api && npm ci --ignore-scripts && npm test
+
+# Pre-deploy re-proof (SRS §12.1) for the claim(s) this MR remediates; all claims for other MRs.
+# Stage `secure`: it needs the built candidate, so it cannot sit in `verify` (which precedes `package`).
+reprove:
+  stage: secure
+  extends: .engine_gcp_sql
+  before_script:
+    - *trusted_policy
+    - source ci/scripts/gcp-login.sh
+    - source ci/scripts/sql-proxy.sh
+  needs: [inspect-candidate]
+  services:
+    - name: postgres:18
+      alias: postgres
+  variables:
+    POSTGRES_DB: shadow
+    POSTGRES_HOST_AUTH_METHOD: trust
+  script:
+    - stale collect --target candidate --runtime-file candidate-runtime.json
+    - CLAIMS=$(echo "${CI_MERGE_REQUEST_LABELS:-}" | tr ',' '\n' | sed -n 's/^stale-claim:://p')
+    - '[ -n "$CLAIMS" ] || CLAIMS=$(ls .stale/claims | sed "s/\.yaml$//")'
+    - rc=0; for c in $CLAIMS; do echo "== reprove $c"; stale reprove --claim "$c" --stage pre-deploy --database-url postgresql://postgres@postgres:5432/shadow || rc=1; done; exit $rc
+  artifacts:
+    when: always
+    paths: [.stale/out/]
+
+# Runs first: a policy violation quarantines the claim before anything else matters (SRS §15.4).
+verify-mr:
+  stage: govern
+  extends: .engine
+  before_script: *trusted_policy
+  needs: []
+  rules:
+    - if: $CI_MERGE_REQUEST_LABELS =~ /(^|,)stale-remediation(,|$)/
+  script:
+    - stale verify-mr --mr-iid "$CI_MERGE_REQUEST_IID"

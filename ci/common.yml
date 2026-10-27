@@ -1,0 +1,39 @@
+# Shared templates (SRS §15.2).
+variables:
+  STALE_CI_IMAGE: $CI_REGISTRY_IMAGE/stale-ci:latest
+  AR_IMAGE_BASE: ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${AR_REPO}
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PIP_ROOT_USER_ACTION: ignore
+
+# Exchange the job's OIDC token for Google credentials (Workload Identity Federation only).
+.gcp_auth:
+  id_tokens:
+    GITLAB_OIDC_TOKEN:
+      aud: https://iam.googleapis.com/projects/${GCP_PROJECT_NUMBER}/locations/global/workloadIdentityPools/${WIF_POOL}/providers/${WIF_PROVIDER}
+
+.engine:
+  image: $STALE_CI_IMAGE
+  before_script:
+    - pip install -q --no-deps ./engine
+
+.engine_gcp:
+  extends: [.engine, .gcp_auth]
+  before_script:
+    - pip install -q --no-deps ./engine
+    - source ci/scripts/gcp-login.sh
+
+.engine_gcp_sql:
+  extends: [.engine, .gcp_auth]
+  before_script:
+    - pip install -q --no-deps ./engine
+    - source ci/scripts/gcp-login.sh
+    - source ci/scripts/sql-proxy.sh
+
+# Kaniko: no Docker daemon needed on shared runners.
+.kaniko:
+  image:
+    name: gcr.io/kaniko-project/executor:v1.23.2-debug
+    entrypoint: [""]
+  before_script:
+    - mkdir -p /kaniko/.docker
+    - printf '{"auths":{"%s":{"username":"%s","password":"%s"}}}' "$CI_REGISTRY" "$CI_REGISTRY_USER" "$CI_REGISTRY_PASSWORD" > /kaniko/.docker/config.json

@@ -1,0 +1,9 @@
+{
+  "name": "partner-sim",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Demo-only TLS partner endpoints for the Stale demo (sidecar)",
+  "license": "MIT",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" }
+}

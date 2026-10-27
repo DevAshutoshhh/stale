@@ -1,0 +1,87 @@
+# Source of truth for the stale-remediator flow (SRS section 11.1). Registered by pasting this file into
+# Automate -> Flows -> New flow (private); keep this file identical to what is registered.
+# Trigger: Assign.
+# Prompts must not contain HTML comments (GitLab rejects them), so markers are described in words.
+version: "v1"
+environment: ambient
+
+components:
+  - name: "remediator"
+    type: AgentComponent
+    prompt_id: "stale_remediator_prompt"
+    inputs:
+      - from: "context:goal"
+        as: "issue_iid"
+      - from: "context:project_id"
+        as: "project_id"
+      - from: "context:inputs.agent_platform_standard_context.primary_branch"
+        as: "primary_branch"
+    toolset:
+      - "get_issue"
+      - "list_issues"
+      - "get_repository_file"
+      - "list_repository_tree"
+      - "create_branch"
+      - "create_commit"
+      - "create_merge_request"
+      - "create_issue_note"
+    ui_log_events:
+      - "on_agent_final_answer"
+      - "on_tool_execution_success"
+      - "on_tool_execution_failed"
+
+prompts:
+  - prompt_id: "stale_remediator_prompt"
+    name: "Stale remediator"
+    unit_primitives: []
+    prompt_template:
+      system: |
+        You repair one stale safety claim by opening exactly one merge request.
+        Rules you must follow:
+        1. Read the issue. Its description contains one fenced json code block placed between
+           two HTML comment markers named stale:machine:begin and stale:machine:end.
+           Parse that JSON. It gives: claim, rules, playbook, allowPaths, facts.
+        2. Read the playbook file and follow it exactly. Read the claim file under .stale/claims/.
+           If the issue has notes from the canary analyst, read them and address them.
+        3. You may modify ONLY files matching allowPaths. Never modify anything under .stale/,
+           never modify CI files, never modify application source code outside allowPaths.
+        4. Use only values given in "facts". Do not invent versions, hashes or names.
+        5. Create a branch named stale/CLAIM/ISSUE-aN where CLAIM is the claim id, ISSUE is the
+           issue iid and N is the attempt number from the issue's stale-attempt label.
+        6. Commit all edits in one commit with message "fix(stale): remediate CLAIM".
+        7. Open a merge request into the primary branch titled
+           "fix(stale): remediate CLAIM (attempt N)" with labels "stale-remediation" and
+           "stale-claim::CLAIM" (add "stale-retry" when N is greater than 1). The description must
+           contain "Related to #ISSUE" and a short list of each file changed and why. Never use the
+           words close, closes, fix, fixes, resolve or resolves next to an issue reference.
+        8. Post one note on the issue linking the merge request.
+        If the playbook cannot be followed within allowPaths, do not open a merge request; post a note
+        on the issue explaining exactly what blocked you.
+        When the merge request is open and the note is posted (or the blocking note is posted),
+        your final answer is the merge request URL or the word BLOCKED. No further steps are needed after that.
+      user: |
+        Project ID: {{ project_id }}
+        Issue IID: {{ issue_iid }}
+        Primary branch: {{ primary_branch }}
+      placeholder: history
+    params:
+      timeout: 600
+
+routers:
+  - from: "remediator"
+    to: "end"
+
+flow:
+  entry_point: "remediator"
+  inputs:
+    - category: agent_platform_standard_context
+      input_schema:
+        primary_branch:
+          type: string
+          description: Default branch of the repository
+        workload_branch:
+          type: string
+          description: git ref of the workload branch
+        session_owner_id:
+          type: string
+          description: User id that initiated the flow

@@ -1,0 +1,268 @@
+{
+  "schema": "stale.security-baseline/v1",
+  "reviewed_at": "2026-10-26",
+  "policy": "security-gate fails on any Critical/High finding whose identifiers are not listed here. Only base-image OS package CVEs present at baseline are accepted. Edits to .stale/ are rejected by verify-mr, so the remediation flow cannot extend this list.",
+  "allowed": [
+    {
+      "id": "CVE-2023-45853",
+      "severity": "Critical",
+      "packages": [
+        "zlib1g"
+      ],
+      "seen_by": [
+        "gitlab-container-scanning (Trivy 0.72.0) on ledger-api @ node:24.22.0-bookworm-slim",
+        "trivy 0.67.2 on node:24.22.0-bookworm-slim",
+        "trivy 0.67.2 on node:24.22.1-bookworm-slim"
+      ],
+      "reason": "Debian bookworm OS package in the official Node base image; present in both node:24.22.0 and node:24.22.1 bookworm-slim; not introduced by this repository."
+    },
+    {
+      "id": "CVE-2025-69720",
+      "severity": "High",
+      "packages": [
+        "libtinfo6",
+        "ncurses-base",
+        "ncurses-bin"
+      ],
+      "seen_by": [
+        "gitlab-container-scanning (Trivy 0.72.0) on ledger-api @ node:24.22.0-bookworm-slim",
+        "trivy 0.67.2 on node:24.22.0-bookworm-slim",
+        "trivy 0.67.2 on node:24.22.1-bookworm-slim"
+      ],
+      "reason": "Debian bookworm OS package in the official Node base image; present in both node:24.22.0 and node:24.22.1 bookworm-slim; not introduced by this repository."
+    },
+    {
+      "id": "CVE-2026-102276",
+      "severity": "High",
+      "packages": [
+        "brace-expansion"
+      ],
+      "seen_by": [
+        "trivy 0.67.2 on node:24.22.0-bookworm-slim",
+        "trivy 0.67.2 on node:24.22.1-bookworm-slim"
+      ],
+      "reason": "Debian bookworm OS package in the official Node base image; present in both node:24.22.0 and node:24.22.1 bookworm-slim; not introduced by this repository."
+    },
+    {
+      "id": "CVE-2026-102278",
+      "severity": "High",
+      "packages": [
+        "brace-expansion"
+      ],
+      "seen_by": [
+        "trivy 0.67.2 on node:24.22.0-bookworm-slim",
+        "trivy 0.67.2 on node:24.22.1-bookworm-slim"
+      ],
+      "reason": "Debian bookworm OS package in the official Node base image; present in both node:24.22.0 and node:24.22.1 bookworm-slim; not introduced by this repository."
+    },
+    {
+      "id": "CVE-2026-109869",
+      "severity": "High",
+      "packages": [
+        "undici"
+      ],
+      "seen_by": [
+        "trivy 0.67.2 on node:24.22.0-bookworm-slim",
+        "trivy 0.67.2 on node:24.22.1-bookworm-slim"
+      ],
+      "reason": "Debian bookworm OS package in the official Node base image; present in both node:24.22.0 and node:24.22.1 bookworm-slim; not introduced by this repository."
+    },
+    {
+      "id": "CVE-2026-16742",
+      "severity": "High",
+      "packages": [
+        "libsystemd0",
+        "libudev1"
+      ],
+      "seen_by": [
+        "gitlab-container-scanning (Trivy 0.72.0) on ledger-api @ node:24.22.0-bookworm-slim",
+        "trivy 0.67.2 on node:24.22.0-bookworm-slim",
+        "trivy 0.67.2 on node:24.22.1-bookworm-slim"
+      ],
+      "reason": "Debian bookworm OS package in the official Node base image; present in both node:24.22.0 and node:24.22.1 bookworm-slim; not introduced by this repository."
+    },
+    {
+      "id": "CVE-2026-19534",
+      "severity": "High",
+      "packages": [
+        "undici"
+      ],
+      "seen_by": [
+        "trivy 0.67.2 on node:24.22.0-bookworm-slim",
+        "trivy 0.67.2 on node:24.22.1-bookworm-slim"
+      ],
+      "reason": "Debian bookworm OS package in the official Node base image; present in both node:24.22.0 and node:24.22.1 bookworm-slim; not introduced by this repository."
+    },
+    {
+      "id": "CVE-2026-41992",
+      "severity": "High",
+      "packages": [
+        "gzip"
+      ],
+      "seen_by": [
+        "gitlab-container-scanning (Trivy 0.72.0) on ledger-api @ node:24.22.0-bookworm-slim",
+        "trivy 0.67.2 on node:24.22.0-bookworm-slim",
+        "trivy 0.67.2 on node:24.22.1-bookworm-slim"
+      ],
+      "reason": "Debian bookworm OS package in the official Node base image; present in both node:24.22.0 and node:24.22.1 bookworm-slim; not introduced by this repository."
+    },
+    {
+      "id": "CVE-2026-53613",
+      "severity": "High",
+      "packages": [
+        "bsdutils",
+        "libblkid1",
+        "libmount1",
+        "libsmartcols1",
+        "libuuid1",
+        "mount",
+        "util-linux",
+        "util-linux-extra"
+      ],
+      "seen_by": [
+        "gitlab-container-scanning (Trivy 0.72.0) on ledger-api @ node:24.22.0-bookworm-slim",
+        "trivy 0.67.2 on node:24.22.0-bookworm-slim",
+        "trivy 0.67.2 on node:24.22.1-bookworm-slim"
+      ],
+      "reason": "Debian bookworm OS package in the official Node base image; present in both node:24.22.0 and node:24.22.1 bookworm-slim; not introduced by this repository."
+    },
+    {
+      "id": "CVE-2026-53615",
+      "severity": "High",
+      "packages": [
+        "bsdutils",
+        "libblkid1",
+        "libmount1",
+        "libsmartcols1",
+        "libuuid1",
+        "mount",
+        "util-linux",
+        "util-linux-extra"
+      ],
+      "seen_by": [
+        "gitlab-container-scanning (Trivy 0.72.0) on ledger-api @ node:24.22.0-bookworm-slim",
+        "trivy 0.67.2 on node:24.22.0-bookworm-slim",
+        "trivy 0.67.2 on node:24.22.1-bookworm-slim"
+      ],
+      "reason": "Debian bookworm OS package in the official Node base image; present in both node:24.22.0 and node:24.22.1 bookworm-slim; not introduced by this repository."
+    },
+    {
+      "id": "CVE-2026-54369",
+      "severity": "High",
+      "packages": [
+        "libacl1"
+      ],
+      "seen_by": [
+        "gitlab-container-scanning (Trivy 0.72.0) on ledger-api @ node:24.22.0-bookworm-slim",
+        "trivy 0.67.2 on node:24.22.0-bookworm-slim",
+        "trivy 0.67.2 on node:24.22.1-bookworm-slim"
+      ],
+      "reason": "Debian bookworm OS package in the official Node base image; present in both node:24.22.0 and node:24.22.1 bookworm-slim; not introduced by this repository."
+    },
+    {
+      "id": "CVE-2026-76642",
+      "severity": "High",
+      "packages": [
+        "bsdutils",
+        "libblkid1",
+        "libmount1",
+        "libsmartcols1",
+        "libuuid1",
+        "mount",
+        "util-linux",
+        "util-linux-extra"
+      ],
+      "seen_by": [
+        "gitlab-container-scanning (Trivy 0.72.0) on ledger-api @ node:24.22.0-bookworm-slim",
+        "trivy 0.67.2 on node:24.22.0-bookworm-slim",
+        "trivy 0.67.2 on node:24.22.1-bookworm-slim"
+      ],
+      "reason": "Debian bookworm OS package in the official Node base image; present in both node:24.22.0 and node:24.22.1 bookworm-slim; not introduced by this repository."
+    },
+    {
+      "id": "CVE-2026-78408",
+      "severity": "High",
+      "packages": [
+        "bsdutils",
+        "libblkid1",
+        "libmount1",
+        "libsmartcols1",
+        "libuuid1",
+        "mount",
+        "util-linux",
+        "util-linux-extra"
+      ],
+      "seen_by": [
+        "gitlab-container-scanning (Trivy 0.72.0) on ledger-api @ node:24.22.0-bookworm-slim",
+        "trivy 0.67.2 on node:24.22.0-bookworm-slim",
+        "trivy 0.67.2 on node:24.22.1-bookworm-slim"
+      ],
+      "reason": "Debian bookworm OS package in the official Node base image; present in both node:24.22.0 and node:24.22.1 bookworm-slim; not introduced by this repository."
+    },
+    {
+      "id": "CVE-2026-78409",
+      "severity": "High",
+      "packages": [
+        "bsdutils",
+        "libblkid1",
+        "libmount1",
+        "libsmartcols1",
+        "libuuid1",
+        "mount",
+        "util-linux",
+        "util-linux-extra"
+      ],
+      "seen_by": [
+        "gitlab-container-scanning (Trivy 0.72.0) on ledger-api @ node:24.22.0-bookworm-slim",
+        "trivy 0.67.2 on node:24.22.0-bookworm-slim",
+        "trivy 0.67.2 on node:24.22.1-bookworm-slim"
+      ],
+      "reason": "Debian bookworm OS package in the official Node base image; present in both node:24.22.0 and node:24.22.1 bookworm-slim; not introduced by this repository."
+    },
+    {
+      "id": "CVE-2026-78410",
+      "severity": "High",
+      "packages": [
+        "bsdutils",
+        "libblkid1",
+        "libmount1",
+        "libsmartcols1",
+        "libuuid1",
+        "mount",
+        "util-linux",
+        "util-linux-extra"
+      ],
+      "seen_by": [
+        "gitlab-container-scanning (Trivy 0.72.0) on ledger-api @ node:24.22.0-bookworm-slim",
+        "trivy 0.67.2 on node:24.22.0-bookworm-slim",
+        "trivy 0.67.2 on node:24.22.1-bookworm-slim"
+      ],
+      "reason": "Debian bookworm OS package in the official Node base image; present in both node:24.22.0 and node:24.22.1 bookworm-slim; not introduced by this repository."
+    },
+    {
+      "id": "CVE-2026-93748",
+      "severity": "High",
+      "packages": [
+        "http-cache-semantics"
+      ],
+      "seen_by": [
+        "trivy 0.67.2 on node:24.22.0-bookworm-slim",
+        "trivy 0.67.2 on node:24.22.1-bookworm-slim"
+      ],
+      "reason": "Debian bookworm OS package in the official Node base image; present in both node:24.22.0 and node:24.22.1 bookworm-slim; not introduced by this repository."
+    },
+    {
+      "id": "CVE-2026-9538",
+      "severity": "High",
+      "packages": [
+        "perl-base"
+      ],
+      "seen_by": [
+        "gitlab-container-scanning (Trivy 0.72.0) on ledger-api @ node:24.22.0-bookworm-slim",
+        "trivy 0.67.2 on node:24.22.0-bookworm-slim",
+        "trivy 0.67.2 on node:24.22.1-bookworm-slim"
+      ],
+      "reason": "Debian bookworm OS package in the official Node base image; present in both node:24.22.0 and node:24.22.1 bookworm-slim; not introduced by this repository."
+    }
+  ]
+}

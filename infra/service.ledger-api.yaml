@@ -1,0 +1,76 @@
+# Knative service spec for Cloud Run, rendered by ci/scripts/release.sh (envsubst) and applied with
+# `gcloud run services replace`. Multi-container: ledger-api (ingress) + partner-sim (sidecar, TLS on
+# localhost:8443/8444 with the demo chains). SRS §13.1.
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: ledger-api
+  labels:
+    cloud.googleapis.com/location: ${GCP_REGION}
+  annotations:
+    run.googleapis.com/ingress: all
+spec:
+  template:
+    metadata:
+      name: ${NEW_REVISION}
+      labels:
+        stale-pipeline: "${CI_PIPELINE_ID}"
+      annotations:
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "3"
+        run.googleapis.com/container-dependencies: '{"ledger-api":["partner-sim"]}'
+        run.googleapis.com/startup-cpu-boost: "true"
+        run.googleapis.com/cloudsql-instances: ${CLOUDSQL_INSTANCE}
+    spec:
+      serviceAccountName: ${RUNTIME_SA}
+      containerConcurrency: 80
+      timeoutSeconds: 30
+      containers:
+        - name: ledger-api
+          image: ${LEDGER_IMAGE}
+          ports:
+            - name: http1
+              containerPort: 8080
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: stale-app-database-url
+                  key: latest
+            - name: PARTNER_TRUSTED_URL
+              value: https://localhost:8443/hook
+            - name: PARTNER_DISTRUSTED_URL
+              value: https://localhost:8444/hook
+            - name: DEMO_TOKENS
+              value: alpha:tok-alpha,beta:tok-beta
+            - name: STALE_LOCKFILE_URL
+              value: "${STALE_LOCKFILE_URL}"
+            - name: STALE_COMMIT_SHA
+              value: "${CI_COMMIT_SHA}"
+            - name: STALE_FEEDS_BASE_URL
+              value: "${STALE_FEEDS_BASE_URL}"
+            - name: STALE_ROW_THRESHOLD
+              value: "${STALE_ROW_THRESHOLD}"
+          resources:
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            periodSeconds: 2
+            failureThreshold: 30
+        - name: partner-sim
+          image: ${PARTNER_IMAGE}
+          resources:
+            limits:
+              cpu: "1"
+              memory: 256Mi
+          startupProbe:
+            tcpSocket:
+              port: 8443
+            periodSeconds: 2
+            failureThreshold: 15
+  traffic:
+${TRAFFIC_BLOCK}

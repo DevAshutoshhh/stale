@@ -1,0 +1,40 @@
+apiVersion: stale/v2
+kind: Claim
+metadata:
+  id: anchor-trusted
+  owner: platform-security
+  enabled: true
+spec:
+  assertion: >-
+    Every revision serving traffic runs a Node release that is patched for its
+    major line, and its effective default CA set contains no distrusted or weak anchor.
+  targets: [serving, candidate]
+  evidence:
+    - collector: runtime_report
+    - collector: node_feed
+      config:
+        releases: "${STALE_FEEDS_BASE_URL}/node-releases.json"
+        schedule: "${STALE_FEEDS_BASE_URL}/node-schedule.json"
+    - collector: root_feed
+      config:
+        url: "${STALE_FEEDS_BASE_URL}/root-distrust.json"
+  fingerprint:
+    include:
+      - runtime_report.node_version
+      - runtime_report.effective_ca_spki
+      - node_feed.line_security_floor
+      - node_feed.line_eol
+      - root_feed.distrusted_spki
+  rules: [R1, R2, R3, R4]
+  remediation:
+    flow: stale-remediator
+    playbook: .stale/playbooks/anchor-trusted.md
+    allowPaths:
+      - app/ledger-api/Dockerfile
+      - app/ledger-api/deploy/trust/**
+    maxAttemptsPer24h: 2
+  reproof:
+    preDeploy: [image_runtime_report]
+    canary: [partner_trusted_ok, partner_distrusted_rejected, runtime_report_matches]
+  rollout:
+    soakSeconds: 120

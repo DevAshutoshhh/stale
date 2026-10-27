@@ -1,0 +1,32 @@
+apiVersion: stale/v2
+kind: Claim
+metadata:
+  id: migration-safe
+  owner: data-platform
+  enabled: true
+spec:
+  assertion: >-
+    No pending migration takes a blocking lock on a large table, every blocking
+    statement on a large table runs under a lock_timeout of at most 2 s, and every
+    concurrent index build is retry-safe and runs outside a transaction.
+  targets: [serving, candidate]
+  evidence:
+    - collector: pending_migrations
+    - collector: pg_stats
+  fingerprint:
+    include:
+      - pending_migrations
+      - pg_stats.*.reltuples
+      - threshold
+  rules: [M1, M3, M4, M5]
+  remediation:
+    flow: stale-remediator
+    playbook: .stale/playbooks/migration-safe.md
+    allowPaths:
+      - app/ledger-api/db/migrations/**
+    maxAttemptsPer24h: 2
+  reproof:
+    preDeploy: [shadow_migration]
+    canary: [migration_applied]
+  rollout:
+    soakSeconds: 120

@@ -1,0 +1,12 @@
+{
+  "schema": "stale.rootfeed/v1",
+  "updated_at": "2026-10-24T00:00:00Z",
+  "distrusted": [
+    {
+      "spki_sha256": "d47bf7a9ebf975e53c2429ebff22dbcaea1c57afdda557739e8dc5c50a0a4450",
+      "subject": "CN=Demo Root G3",
+      "reason": "Root program removed this anchor from trust",
+      "source": "demo mirror of root-program action"
+    }
+  ]
+}

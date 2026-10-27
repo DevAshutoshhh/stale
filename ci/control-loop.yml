@@ -1,0 +1,62 @@
+# Control loop (SRS §15.3): runs on a schedule with no commit. Jobs exit 0 and report through
+# issues; only real errors fail them.
+validate:
+  stage: plan
+  extends: .engine
+  script:
+    - stale validate
+
+collect-serving:
+  stage: plan
+  extends: .engine_gcp_sql
+  needs: [validate]
+  script:
+    - STABLE_URL=$(bash ci/scripts/release.sh stable-url)
+    - echo "serving evidence from $STABLE_URL"
+    - stale collect --target serving --runtime-url "$STABLE_URL"
+    # R0: a revision with traffic but no tag cannot be observed through a tag URL.
+    - gcloud run services describe ledger-api --region "$GCP_REGION" --format=json > /tmp/svc.json
+    - UNOBS=$(jq -c '[.status.traffic[] | select(.percent > 0 and (.tag // "") == "") | .revisionName]' /tmp/svc.json)
+    - echo "untagged revisions with traffic => $UNOBS"
+    - >
+      jq --argjson u "$UNOBS" 'if ($u|length) > 0 then .claims["anchor-trusted"].evidence.runtime_report.unobservable_revisions = $u else . end'
+      .stale/out/evidence-serving.json > /tmp/ev.json && mv /tmp/ev.json .stale/out/evidence-serving.json
+  artifacts:
+    when: always
+    paths: [.stale/out/]
+
+check:
+  stage: plan
+  extends: .engine
+  needs: [collect-serving]
+  # one loop at a time writes issues: a second scheduled run must see the first run's issues
+  resource_group: control-loop
+  script:
+    - stale check --target serving --open-issues
+  artifacts:
+    when: always
+    paths: [.stale/out/check-report.md]
+
+dispatch:
+  stage: create
+  extends: .engine
+  needs: [check]
+  resource_group: control-loop
+  rules:
+    - if: $STALE_REMEDIATOR_USER_ID
+  script:
+    - stale dispatch
+
+report:
+  stage: govern
+  extends: .engine
+  needs:
+    - job: collect-serving
+    - job: check
+      artifacts: false
+  when: always
+  script:
+    - stale report
+  artifacts:
+    when: always
+    paths: [.stale/out/report.md]

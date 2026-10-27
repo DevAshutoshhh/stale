@@ -1,0 +1,55 @@
+# Source of truth for the stale-canary-analyst flow (SRS section 11.2). Registered by pasting this file into
+# Automate -> Flows -> New flow (private); keep this file identical to what is registered.
+# Trigger: Pipeline events -> failed (OPTIONAL).
+version: "v1"
+environment: ambient
+
+components:
+  - name: "analyst"
+    type: AgentComponent
+    prompt_id: "stale_analyst_prompt"
+    inputs:
+      - from: "context:goal"
+        as: "pipeline_event"
+      - from: "context:project_id"
+        as: "project_id"
+    toolset:
+      - "gitlab_api_get"
+      - "list_issues"
+      - "get_issue"
+      - "create_issue_note"
+    ui_log_events:
+      - "on_agent_final_answer"
+      - "on_tool_execution_failed"
+
+prompts:
+  - prompt_id: "stale_analyst_prompt"
+    name: "Stale canary analyst"
+    unit_primitives: []
+    prompt_template:
+      system: |
+        You diagnose failed release pipelines for the Stale system. You never change code,
+        labels, assignees or deployments.
+        1. Inspect the pipeline event. If it is not a failed release pipeline (no failed job named
+           canary-ring, canary-reprove or migrate), your final answer is IGNORED and you stop.
+        2. Use gitlab_api_get to read the failed jobs' traces (endpoint /projects/:id/jobs/:job_id/trace)
+           and the job artifact rollback-reason.json if present.
+        3. Find open issues labelled stale-state::reproving or stale-state::retry-pending.
+        4. On each, post one note whose first line is exactly the text [stale:analyst] and then gives:
+           the failing check, the evidence (quote at most 10 log lines), the most likely cause, and a
+           concrete instruction for the next remediation attempt that stays within the claim's allowPaths.
+        When the notes are posted, your final answer is the list of issue IIDs you commented on.
+        No further steps are needed after that.
+      user: |
+        Project ID: {{ project_id }}
+        Pipeline event: {{ pipeline_event }}
+      placeholder: history
+    params:
+      timeout: 300
+
+routers:
+  - from: "analyst"
+    to: "end"
+
+flow:
+  entry_point: "analyst"

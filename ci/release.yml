@@ -1,0 +1,104 @@
+# Release child pipeline (SRS §15.3). Copied verbatim into release-plan.yml by `stale plan-release`
+# when the gate passes, so it is self-contained. Every job holds resource_group `production`.
+#
+# configure: record-stable → release: migrate, deploy-canary (0% + tag) → monitor: canary-reprove
+# (tag URL probes), canary-ring (50% → 100%, k6 + per-revision 5xx) → govern: promote, mint.
+# Any failure → rollback (.post, when: on_failure) sends 100% back to STABLE_REVISION.
+stages: [configure, release, monitor, govern]
+
+variables:
+  STALE_LANE: release
+  STALE_CI_IMAGE: $CI_REGISTRY_IMAGE/stale-ci:latest
+  AR_IMAGE_BASE: ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${AR_REPO}
+  SOAK_SECONDS: "120"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PIP_ROOT_USER_ACTION: ignore
+
+.rel:
+  image: $STALE_CI_IMAGE
+  resource_group: production
+  id_tokens:
+    GITLAB_OIDC_TOKEN:
+      aud: https://iam.googleapis.com/projects/${GCP_PROJECT_NUMBER}/locations/global/workloadIdentityPools/${WIF_POOL}/providers/${WIF_PROVIDER}
+  before_script:
+    - pip install -q --no-deps ./engine
+    - source ci/scripts/gcp-login.sh
+
+record-stable:
+  stage: configure
+  extends: .rel
+  script:
+    - bash ci/scripts/release.sh record-stable
+  artifacts:
+    when: always
+    reports:
+      dotenv: record-stable.env
+
+# Expand-only migrations ship before code. A failed canary does not roll them back (SRS §15.3).
+migrate:
+  stage: release
+  extends: .rel
+  needs: [record-stable]
+  script:
+    - source ci/scripts/sql-proxy.sh
+    - stale migrate plan --database-url "$DATABASE_URL"
+    - stale migrate apply --database-url "$DATABASE_URL"
+
+deploy-canary:
+  stage: release
+  extends: .rel
+  needs: [record-stable, migrate]
+  script:
+    - bash ci/scripts/release.sh deploy-canary
+  artifacts:
+    when: always
+    paths: [service.rendered.yaml]
+    reports:
+      dotenv: deploy-canary.env
+
+canary-reprove:
+  stage: monitor
+  extends: .rel
+  needs: [record-stable, deploy-canary]
+  script:
+    - stale reprove --stage canary --canary-url "$CANARY_URL" --expect-revision "$CANARY_REVISION"
+  artifacts:
+    when: always
+    paths: [.stale/out/canary-report.json]
+
+canary-ring:
+  stage: monitor
+  extends: .rel
+  needs: [record-stable, deploy-canary, canary-reprove]
+  script:
+    - bash ci/scripts/release.sh canary-ring
+
+promote:
+  stage: govern
+  extends: .rel
+  needs: [record-stable, deploy-canary, canary-ring]
+  script:
+    - bash ci/scripts/release.sh promote
+  artifacts:
+    reports:
+      dotenv: promote.env
+
+mint:
+  stage: govern
+  extends: .rel
+  needs: [deploy-canary, promote]
+  script:
+    - source ci/scripts/sql-proxy.sh
+    - stale mint --revision "$CANARY_REVISION" --runtime-url "$STABLE_URL"
+
+rollback:
+  stage: .post
+  extends: .rel
+  when: on_failure
+  dependencies: [record-stable, deploy-canary, canary-reprove]
+  script:
+    - bash ci/scripts/release.sh rollback
+    - if [ -n "${STALE_BOT_TOKEN:-}" ]; then stale rollback-transition --reason rollback-reason.json; fi
+  artifacts:
+    when: always
+    paths: [rollback-reason.json]

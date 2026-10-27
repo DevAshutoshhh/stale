@@ -1,0 +1,12 @@
+# WIF smoke test: list Cloud Run services using only the job's OIDC token (no key file).
+wif-smoke:
+  stage: configure
+  extends: [.engine, .gcp_auth]
+  before_script: []
+  script:
+    - source ci/scripts/gcp-login.sh
+    - echo "credential file type => $(jq -r .type /tmp/gcp.json) (external_account = federated, not a key)"
+    - test "$(jq -r .type /tmp/gcp.json)" = external_account
+    - "! jq -e '.private_key' /tmp/gcp.json > /dev/null"
+    - gcloud auth list --filter=status:ACTIVE --format="value(account)"
+    - gcloud run services list --region "$GCP_REGION" --format="table(metadata.name,status.url)"

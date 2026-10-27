@@ -1,0 +1,37 @@
+# Local stack mirroring the Cloud Run service: ledger-api shares partner-sim's network namespace,
+# so https://localhost:8443 / :8444 reach the sidecar exactly as on Cloud Run (SRS §13.1, §13.4).
+# Local only: Postgres uses trust auth and is bound to 127.0.0.1.
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: stale
+      POSTGRES_DB: ledger
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports: ["127.0.0.1:5432:5432"]
+    volumes:
+      - ./demo/local/initdb.sql:/docker-entrypoint-initdb.d/initdb.sql:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "stale", "-d", "ledger"]
+      interval: 2s
+      retries: 30
+
+  partner-sim:
+    build: ./app/partner-sim
+    # ledger-api joins this network namespace; publish its port here.
+    ports: ["127.0.0.1:8080:8080"]
+
+  ledger-api:
+    build:
+      context: ./app/ledger-api
+    network_mode: "service:partner-sim"
+    depends_on:
+      partner-sim: { condition: service_started }
+      postgres: { condition: service_healthy }
+    environment:
+      PORT: "8080"
+      K_REVISION: local-compose
+      DATABASE_URL: postgresql://stale@postgres:5432/ledger
+      PARTNER_TRUSTED_URL: https://localhost:8443/hook
+      PARTNER_DISTRUSTED_URL: https://localhost:8444/hook
+      DEMO_TOKENS: alpha:tok-alpha,beta:tok-beta
